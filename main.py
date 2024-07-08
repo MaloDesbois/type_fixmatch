@@ -17,7 +17,7 @@ L2018=np.load('/home/malo/Stage/Data/data modifiées 11 classes/l2018_modif.npz'
 
 n_epochs=250
 data = L2018 
-train_dataloader1,train_dataloader2,train_dataloader3,val_dataloader,test_dataloader,dates,data_shape = data_loading(data)
+train_dataloader1,train_dataloader2,train_dataloader3,val_dataloader,test_dataloader,dates,data_shape = data_loading(data)  # on a 3 dataloaders pour pouvoir ajouter des données "non-labélisées" au cours de l'entrainement
 data_shape=(data_shape[0],data_shape[2],data_shape[1])
 
 config={'emb_size':64,'num_heads':8,'Data_shape':data_shape,'Fix_pos_encode':'tAPE','Rel_pos_encode':'eRPE','dropout':0.2,'dim_ff':64}
@@ -75,7 +75,7 @@ for n in range(n_epochs):
                 yl_batch = torch.tensor(y_batch[i_l])
                 
                 model.eval()
-                result= model(x_batch,mask_batch)
+                result= model(x_batch,mask_batch)                                                                   # première prediciton pour obtenir les pseudo-labels
                 yul_batch = [torch.argmax(result[k]) if max(result[k])>0.95 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée 
                 yul_batch = torch.tensor(yul_batch).to(device)
                 yul_batch = yul_batch.to(torch.int64)
@@ -90,7 +90,7 @@ for n in range(n_epochs):
                 y_batch = torch.cat((yl_batch,yul_batch),axis=0)
                 mask_batch = torch.cat((ml_batch,mul_batch),axis=0)  
                 ind_loss = [k for k in range(len(y_batch)) if y_batch[k] != torch.tensor(-1) ] # ici on ne conserve que les éléments pour lesquels on a un label 
-                                                                                #ou un pseudo label de confiance
+                                                                                                # ou un pseudo label de confiance
                 
                 pred = model(x_batch,mask_batch)
                 loss = loss_fn(pred[ind_loss],y_batch[ind_loss])
