@@ -13,7 +13,17 @@ R2020=np.load('/home/malo/Stage/Data/data modifiées 11 classes/r2020_modif.npz'
 T2018=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2018_modif.npz',allow_pickle=True)
 T2019=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2019_modif.npz',allow_pickle=True)
 T2020=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2020_modif.npz',allow_pickle=True)
-
+class dropout:
+    def __init__(self, p): # p est la probabilité de conservation des donées
+        self.pourcentage = p
+    def augment(self,x,mask):
+        size = x.size
+        suppr = torch.bernoulli(p * torch.ones(size)) # on va conserver les données là où il y a un 1 et supprimer celles où où il y a un 0
+        x = x.masked_fill(suppr==0,0)
+        mask = mask.masked_fill(suppr==0,0)
+        return x,mask
+        
+    
 def get_day_count(dates,ref_day='09-01'):
     # Days elapsed from 'ref_day' of the year in dates[0]
     ref = np.datetime64(f'{dates.astype("datetime64[Y]")[0]}-'+ref_day)
