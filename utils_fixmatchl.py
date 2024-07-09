@@ -14,8 +14,8 @@ T2018=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2018_modif.npz'
 T2019=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2019_modif.npz',allow_pickle=True)
 T2020=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2020_modif.npz',allow_pickle=True)
 
-class dropout:
-    def __init__(self, p): # p est la probabilité de conservation des donées
+class dropout:                                                         # permet de faire une transformation de données en enlevant certaines valeurs ces valeurs sont remplacées par un zéros 
+    def __init__(self, p):                                             # p est la probabilité de conservation des donées
         self.p = p
     def augment(self,x,mask):
         
@@ -24,18 +24,18 @@ class dropout:
         
         
        
-        suppr = torch.bernoulli(self.p * torch.ones(size)).cuda() # on va conserver les données là où il y a un 1 et supprimer celles où où il y a un 0
+        suppr = torch.bernoulli(self.p * torch.ones(size)).cuda()    # on va conserver les données là où il y a un 1 et supprimer celles où où il y a un 0
+                                                                        #suppr fourni un masque que nous appliquons à la fois aux données et aux masques
         
         
-        
-        mask = mask.masked_fill(suppr==0,0)
-        suppr = suppr.unsqueeze(2)
+        mask = mask.masked_fill(suppr==0,0)                        # application sur le masque
+        suppr = suppr.unsqueeze(2)                                 # les deux lignes suivantes permettent d'appliquer le masque sur les 2 channels de nos données   
         suppr = suppr.repeat(1,1,2)
         
-        x = x.masked_fill(suppr==0,0)
+        x = x.masked_fill(suppr==0,0)                              # application sur les données
         
         return x,mask
-class identité:
+class identité:        #transformation identité
         
         def augment(x):
           return(x)
@@ -119,7 +119,7 @@ def tvt_split(data):
 
   labels=data['y']
   labels=[mapping[v] if v in mapping else v for v in labels ]
-
+                                                                # phase de normalisation
   max_values = np.percentile(values,99)
   min_values = np.percentile(values,1)
   values_norm=(values-min_values)/(max_values-min_values)
@@ -127,7 +127,7 @@ def tvt_split(data):
   values_norm[values_norm<0] = 0
   values = values_norm                                      # les données sont normalisées
   values=add_mask(values,mask)   
-  sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+  sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0) # split en train/validation + test
   indice = sss.split(values,labels)
 
   tv_index, test_index = next(indice)
@@ -144,7 +144,7 @@ def tvt_split(data):
     labels_test+=[labels[j]]
 
 
-  sss2=StratifiedShuffleSplit(n_splits=1,test_size=0.25,random_state=0)
+  sss2=StratifiedShuffleSplit(n_splits=1,test_size=0.25,random_state=0) # split de train/validation en train+validation
   indice2=sss2.split(values_tv,labels_tv)
   train_index,validation_index = next(indice2)
 
@@ -180,7 +180,7 @@ def tvt_split(data):
 
   return data_train,data_validation,data_test,dates,data_shape
 
-# sélection des données pour le test et régularisatino et masking
+# sélection des données pour le test et régularisatino et masking 
 def selection(data):
     
     selected_data_l = []
@@ -202,17 +202,18 @@ def selection(data):
         # Sélection des indices correspondant à ce label
         indices = np.where(labels == label)[0]
         
-        # Vérification qu'il y a au moins 100 éléments pour ce label
+        # Vérification qu'il y a au moins 400 éléments pour ce label
         if len(indices) >= 400:
             
-            # Sélection aléatoire de 100 indices parmi ceux disponibles
+            # Sélection aléatoire de 400 indices parmi ceux disponibles
             indices = np.random.choice(indices, 400, replace=False)
             
             
             
-            indices_l = indices[:100]
-            indices_ul1 = indices[100:250]
-            indices_ul2 = indices[250:400]
+            indices_l = indices[:100]                # indices des données dont on conservera les labels
+            indices_ul1 = indices[100:250]            # indices de la première moitié des données dont on ne conservera pas les labels
+            indices_ul2 = indices[250:400]            # de la seconde
+            
             # Ajout des données et labels sélectionnés aux tableaux de résultats
             selected_data_l.append(values[indices_l])
             selected_labels_l.append(labels[indices_l])
@@ -256,7 +257,7 @@ def selection(data):
   
   
   
-def selection_b(data):
+def selection_b(data): # pareil que précédemment suaf qu'ici toute les données non-labélisées sont conservées ensemble
     
     selected_data_l = []
     selected_labels_l = []
