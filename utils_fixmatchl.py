@@ -13,17 +13,32 @@ R2020=np.load('/home/malo/Stage/Data/data modifiées 11 classes/r2020_modif.npz'
 T2018=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2018_modif.npz',allow_pickle=True)
 T2019=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2019_modif.npz',allow_pickle=True)
 T2020=np.load('/home/malo/Stage/Data/data modifiées 11 classes/t2020_modif.npz',allow_pickle=True)
+
 class dropout:
     def __init__(self, p): # p est la probabilité de conservation des donées
-        self.pourcentage = p
+        self.p = p
     def augment(self,x,mask):
-        size = x.size
-        suppr = torch.bernoulli(p * torch.ones(size)) # on va conserver les données là où il y a un 1 et supprimer celles où où il y a un 0
-        x = x.masked_fill(suppr==0,0)
-        mask = mask.masked_fill(suppr==0,0)
-        return x,mask
         
-    
+        
+        size = [x.shape[0],x.shape[1]]
+        
+        
+       
+        suppr = torch.bernoulli(self.p * torch.ones(size)).cuda() # on va conserver les données là où il y a un 1 et supprimer celles où où il y a un 0
+        
+        
+        
+        mask = mask.masked_fill(suppr==0,0)
+        suppr = suppr.unsqueeze(2)
+        suppr = suppr.repeat(1,1,2)
+        
+        x = x.masked_fill(suppr==0,0)
+        
+        return x,mask
+class identité:
+        
+        def augment(x):
+          return(x)
 def get_day_count(dates,ref_day='09-01'):
     # Days elapsed from 'ref_day' of the year in dates[0]
     ref = np.datetime64(f'{dates.astype("datetime64[Y]")[0]}-'+ref_day)
@@ -188,16 +203,16 @@ def selection(data):
         indices = np.where(labels == label)[0]
         
         # Vérification qu'il y a au moins 100 éléments pour ce label
-        if len(indices) >= 500:
+        if len(indices) >= 400:
             
             # Sélection aléatoire de 100 indices parmi ceux disponibles
-            indices = np.random.choice(indices, 500, replace=False)
+            indices = np.random.choice(indices, 400, replace=False)
             
             
             
-            indices_l = indices[:300]
-            indices_ul1 = indices[300:400]
-            indices_ul2 = indices[400:500]
+            indices_l = indices[:100]
+            indices_ul1 = indices[100:250]
+            indices_ul2 = indices[250:400]
             # Ajout des données et labels sélectionnés aux tableaux de résultats
             selected_data_l.append(values[indices_l])
             selected_labels_l.append(labels[indices_l])
@@ -237,6 +252,81 @@ def selection(data):
     selection_finale_ul2 = {'X_SAR':selected_data_ul2,'y':[-1 for a in selected_labels_ul2],'dates_SAR':dates}
     
     return selection_finale_l, selection_finale_ul1, selection_finale_ul2 # attention ici les données sont triées par classe
+  
+  
+  
+  
+def selection_b(data):
+    
+    selected_data_l = []
+    selected_labels_l = []
+    selected_l = []
+    selected_data_ul1 = []
+    selected_labels_ul1 = []
+    selected_ul1 = []
+    selected_data_ul2 = []
+    selected_labels_ul2 = []
+    selected_ul2 = []
+    values = data['X_SAR']
+    labels = data['y']
+    dates = data['dates_SAR']
+    
+    # Pour chaque label de 0 à 10
+    for label in range(11):
+        
+        # Sélection des indices correspondant à ce label
+        indices = np.where(labels == label)[0]
+        
+        # Vérification qu'il y a au moins 100 éléments pour ce label
+        if len(indices) >= 400:
+            
+            # Sélection aléatoire de 100 indices parmi ceux disponibles
+            indices = np.random.choice(indices, 400, replace=False)
+            
+            
+            
+            indices_l = indices[:100]
+            indices_ul1 = indices[100:400]
+            
+            # Ajout des données et labels sélectionnés aux tableaux de résultats
+            selected_data_l.append(values[indices_l])
+            selected_labels_l.append(labels[indices_l])
+            selected_data_ul1.append(values[indices_ul1])
+            selected_labels_ul1.append(labels[indices_ul1])
+            
+            
+        elif len(indices) == 0: 
+            print(f'il n\'y a pas {label} dans les data')
+        else:
+            a1 = (len(indices)*3)//5
+            a2 = (len(indices)*4)//5
+            a3 = len(indices)
+           
+            
+            indices_l = indices[:a1]
+            indices_ul1 = indices[a1:]
+            
+            selected_data_l.append(values[indices_l])
+            selected_labels_l.append(labels[indices_l])
+            selected_data_ul1.append(values[indices_ul1])
+            selected_labels_ul1.append(labels[indices_ul1])
+            
+            
+        
+        
+    selected_data_l = np.vstack(selected_data_l)
+    selected_labels_l = np.hstack(selected_labels_l)
+    selected_data_ul1 = np.vstack(selected_data_ul1)
+    selected_labels_ul1 = np.hstack(selected_labels_ul1)
+    
+    selection_finale_l = {'X_SAR':selected_data_l,'y':selected_labels_l,'dates_SAR':dates}
+    selection_finale_ul1 = {'X_SAR':selected_data_ul1,'y':[-1 for a in selected_labels_ul1],'dates_SAR':dates}
+    
+    
+    return selection_finale_l, selection_finale_ul1 # attention ici les données sont triées par classe
+  
+  
+  
 
 # data_laoding on va faire 3 data loader distincts pour pouvoir ajouter des données en cours de route
 
@@ -278,6 +368,47 @@ def data_loading(data):
         test_dataloader = DataLoader(test_dataset, shuffle=True, batch_size=64)
         
         return train_dataloader1,train_dataloader2,train_dataloader3,val_dataloader,test_dataloader,dates,data_shape
+
+
+def data_loading_b(data):
+        values_train = []
+        labels_train = []
+        data_train,data_val,data_test,dates,data_shape = tvt_split(data)
+        
+        value_val = data_val['X_SAR']
+        labels_val = data_val['y']
+        value_test = data_test['X_SAR']
+        labels_test = data_test['y']
+        
+        data_train_l,data_train_ul1 = selection_b(data_train)
+        value_train_l,labels_train_l = data_train_l['X_SAR'],data_train_l['y']
+        value_train_ul1,labels_train_ul1= data_train_ul1['X_SAR'],data_train_ul1['y']
+        
+        x_train1, y_train1 = value_train_l,labels_train_l
+        x_train2, y_train2 = np.concatenate((value_train_l,value_train_ul1)),np.concatenate((labels_train_l,labels_train_ul1))
+        
+        
+        x_val,y_val = torch.tensor(value_val,dtype=torch.float32),torch.tensor(labels_val,dtype=torch.int64)
+        x_test,y_test = torch.tensor(value_test,dtype=torch.float32),torch.tensor(labels_test,dtype=torch.int64)
+        
+        x_train1, y_train1 = torch.tensor(x_train1,dtype=torch.float32),torch.tensor(y_train1,dtype=torch.int64)
+        x_train2, y_train2 = torch.tensor(x_train2,dtype=torch.float32),torch.tensor(y_train2,dtype=torch.int64)
+        
+        
+        train_dataset1 = TensorDataset(x_train1, y_train1)
+        train_dataset2 = TensorDataset(x_train2, y_train2)
+        
+        val_dataset = TensorDataset(x_val, y_val)
+        test_dataset = TensorDataset(x_test, y_test)
+        
+        train_dataloader1 = DataLoader(train_dataset1, shuffle=True, batch_size=64)
+        train_dataloader2 = DataLoader(train_dataset2, shuffle=True, batch_size=64)
+        
+        val_dataloader = DataLoader(val_dataset, shuffle=True, batch_size=64)
+        test_dataloader = DataLoader(test_dataset, shuffle=True, batch_size=64)
+        
+        return train_dataloader1,train_dataloader2,val_dataloader,test_dataloader,dates,data_shape
+
 
 
 # early stopping
