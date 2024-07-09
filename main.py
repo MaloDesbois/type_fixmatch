@@ -51,10 +51,10 @@ for n in range(n_epochs):
             torch.save(model.state_dict(), "model_epc50.pth")
            
             
-        if n < 50 :
+        if n < 50 :                                # entraînement uniquement avec les donées labélisées
             print('<50')
             for xm_batch, y_batch in train_dataloader1 :
-                x_batch,m_batch = xm_batch[:,:,:2],xm_batch[:,:,2] # m_batch correspond aux mask du batch
+                x_batch,m_batch = xm_batch[:,:,:2],xm_batch[:,:,2]  # m_batch correspond aux mask du batch les masquent sont initialement attachées aux données
                 x_batch = x_batch.to(device)
                 m_batch = m_batch.to(device)
                 y_batch = y_batch.to(device)
@@ -67,21 +67,21 @@ for n in range(n_epochs):
                 
                 
             
-        elif n>49 and n<175 : 
+        elif n>49 and n<175 :         # entraînement en ayant ajouté la moitié des données non labélisées
             print('50-175')
             for xm_batch, y_batch in train_dataloader2 :
-                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
+                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]   # séparation du masque qui est attaché aux données
                 x_batch = x_batch.to(device)
                 
                 mask_batch = mask_batch.to(device)
                 y_batch = y_batch.to(device)
-                i_l = [k for k in range(len(y_batch)) if y_batch[k] != -1 ]
-                i_ul = [k for k in range(len(y_batch)) if y_batch[k] == -1 ]
+                i_l = [k for k in range(len(y_batch)) if y_batch[k] != -1 ]   # indices des données labélisées 
+                i_ul = [k for k in range(len(y_batch)) if y_batch[k] == -1 ]  # indices des données non-labélisées qui sont repérées par le label -1
                 xl_batch,ml_batch = x_batch[i_l],mask_batch[i_l]
                 yl_batch = y_batch[i_l].clone().detach()
                 
                 model.eval()
-                result= model(x_batch,mask_batch)
+                result= model(x_batch,mask_batch)                         # première prédicition pour obtenir les pseudo-labels
                 yul_batch = [torch.argmax(result[k]) if max(result[k])>0.95 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée 
                 yul_batch = torch.tensor(yul_batch).to(device)
                 yul_batch = yul_batch.to(torch.int64)
@@ -97,17 +97,17 @@ for n in range(n_epochs):
                 y_batch = torch.cat((yl_batch,yul_batch),axis=0)
                 mask_batch = torch.cat((ml_batch,mul_batch),axis=0)  
                 ind_loss = [k for k in range(len(y_batch)) if y_batch[k] != torch.tensor(-1) ] # ici on ne conserve que les éléments pour lesquels on a un label 
-                                                                                #ou un pseudo label de confiance
+                                                                                                 #ou un pseudo label de confiance
                 
-                pred = model(x_batch,mask_batch)
-                loss = loss_fn(pred[ind_loss],y_batch[ind_loss])
+                pred = model(x_batch,mask_batch)                                                # prédiction finale
+                loss = loss_fn(pred[ind_loss],y_batch[ind_loss])                                # loss calculée uniquement pour les données ayant un label ou un bon pseudo label
                 loss.backward()
                 optimizer.step()
             model.eval()
         
             tot_pred = []
             tot_labels = []
-            for xm_batch, y_batch in val_dataloader:
+            for xm_batch, y_batch in val_dataloader:                                  # phase de validation
                 x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
                 x_batch = x_batch.to(device)
                 y_batch = y_batch.to(device)
@@ -123,11 +123,11 @@ for n in range(n_epochs):
             fscore_a = np.round(fscore,3)
             print(f'f_score val set {fscore_a}')
             early_stop = early_stopping(fscore,model)
-        else:
+        else:                                                                         # ajout de l'autre moitié des données non labélisées, même fonctionnement que précédemment
             print('175<')
             for xm_batch, y_batch in train_dataloader2 :
                 
-                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
+                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]             
                 x_batch = x_batch.to(device)
                 mask_batch = mask_batch.to(device)
                 y_batch = y_batch.to(device)
@@ -189,7 +189,7 @@ torch.save(model.state_dict(), f"model_fixmatchL{nom_transformation}.pth")
 model.eval()       
 tot_pred = []
 tot_labels = []
-for xm_batch, y_batch in test_dataloader:
+for xm_batch, y_batch in test_dataloader:                                        # phase de test du modèle
     x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
     x_batch = x_batch.to(device)
     y_batch = y_batch.to(device)
