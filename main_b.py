@@ -44,15 +44,15 @@ early_stopping=EarlyStopping(patience=25)
 early_stop=False
 for n in range(n_epochs):
     print(n)
-    if early_stop==False :
+    if early_stop==False :   # L'implémentation de earlystopping est telle qu'il renvoie True si le modèle continue de progresser et False sinon 
         
         print (f'Epoch {n+1}---------------')
         model.train()
-        if n == 50 : 
+        if n == 50 :  # permet d'avoir éventuellement accès au modèle entrainer seulement avec les données labélisées
             torch.save(model.state_dict(), "model_epc50.pth")
            
             
-        if n < 50 :
+        if n < 50 :   # entraînement uniquement avec les données labélisées, 50 est une valeur arbitraire
             print('<50')
             for xm_batch, y_batch in train_dataloader1 :
                 x_batch,m_batch = xm_batch[:,:,:2],xm_batch[:,:,2] # m_batch correspond aux mask du batch
@@ -68,47 +68,47 @@ for n in range(n_epochs):
                 
                 
             
-        else :
+        else :                          # entraînement avec les données non-labélisées 
             print('50<')
             for xm_batch, y_batch in train_dataloader2 :
-                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
+                x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]  # ici on sépare le masque des données à proprement parler
                 x_batch = x_batch.to(device)
                 
                 mask_batch = mask_batch.to(device)
                 y_batch = y_batch.to(device)
-                i_l = [k for k in range(len(y_batch)) if y_batch[k] != -1 ]
-                i_ul = [k for k in range(len(y_batch)) if y_batch[k] == -1 ]
-                xl_batch,ml_batch = x_batch[i_l],mask_batch[i_l]
-                yl_batch = y_batch[i_l].clone().detach()
+                i_l = [k for k in range(len(y_batch)) if y_batch[k] != -1 ]   # i_l correspond aux indices des données labélisées 
+                i_ul = [k for k in range(len(y_batch)) if y_batch[k] == -1 ]  # i_ul corresponds auux indices des données non-labélisées repérées par un label -1
+                xl_batch,ml_batch = x_batch[i_l],mask_batch[i_l]               # on prend les données et les mask des données labélisées dont on uara besoin plus tard
+                yl_batch = y_batch[i_l].clone().detach()                        # et les labels
                 
                 model.eval()
-                result= model(x_batch,mask_batch)
-                yul_batch = [torch.argmax(result[k]) if max(result[k])>0.99 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée 
+                result= model(x_batch,mask_batch)                                # première prédiction pour obtenir les pseudo labels
+                yul_batch = [torch.argmax(result[k]) if max(result[k])>0.99 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée, le labels reste -1 si le niveau de confiance est trop faible
                 yul_batch = torch.tensor(yul_batch).to(device)
                 yul_batch = yul_batch.to(torch.int64)
                 model.train()
                 optimizer.zero_grad()
-                xul_batch, mul_batch = x_batch[i_ul], mask_batch[i_ul]
+                xul_batch, mul_batch = x_batch[i_ul], mask_batch[i_ul]          # les éléments du batch non labélisées
                 xul_batch, mul_batch = xul_batch.to(device), mul_batch.to(device)
                 xul_batch=np.array(xul_batch.cpu())
                 #xul_batch,mul_batch = transformation.augment(xul_batch,mul_batch)    # on applique la transformation de données sur les données non labélisées
                 xul_batch = transformation.augment(xul_batch)
                 xul_batch = torch.tensor(xul_batch).to(device)
-                x_batch =   torch.cat((xl_batch,xul_batch),axis=0)
-                y_batch = torch.cat((yl_batch,yul_batch),axis=0)
-                mask_batch = torch.cat((ml_batch,mul_batch),axis=0)  
+                x_batch =   torch.cat((xl_batch,xul_batch),axis=0)    # on recolle les données labélisées et les données non-labélisées augmentées
+                y_batch = torch.cat((yl_batch,yul_batch),axis=0)      # de même pour les labels
+                mask_batch = torch.cat((ml_batch,mul_batch),axis=0)  # et les masques
                 ind_loss = [k for k in range(len(y_batch)) if y_batch[k] != torch.tensor(-1) ] # ici on ne conserve que les éléments pour lesquels on a un label 
-                                                                                #ou un pseudo label de confiance
+                                                                                                #ou un pseudo label de confiance
                 
-                pred = model(x_batch,mask_batch)
-                loss = loss_fn(pred[ind_loss],y_batch[ind_loss])
+                pred = model(x_batch,mask_batch)                        # on fait la prédiciton final
+                loss = loss_fn(pred[ind_loss],y_batch[ind_loss])         # on calcule la loss en utilisant uniquement les données labélisées ou pseudo labélisées
                 loss.backward()
                 optimizer.step()
             model.eval()
         
             tot_pred = []
             tot_labels = []
-            for xm_batch, y_batch in val_dataloader:
+            for xm_batch, y_batch in val_dataloader:                # correspond à la phase de validation
                 x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
                 x_batch = x_batch.to(device)
                 y_batch = y_batch.to(device)
@@ -132,7 +132,7 @@ torch.save(model.state_dict(), f"model_fixmatchL{nom_transformation}.pth")
 model.eval()       
 tot_pred = []
 tot_labels = []
-for xm_batch, y_batch in test_dataloader:
+for xm_batch, y_batch in test_dataloader:                                    # phase de test
     x_batch,mask_batch = xm_batch[:,:,:2],xm_batch[:,:,2]
     x_batch = x_batch.to(device)
     y_batch = y_batch.to(device)
