@@ -82,7 +82,7 @@ for n in range(n_epochs):
                 
                 model.eval()
                 result= model(x_batch,mask_batch)                         # première prédicition pour obtenir les pseudo-labels
-                yul_batch = [torch.argmax(result[k]) if max(result[k])>0.95 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée 
+                yul_batch = [torch.argmax(result[k]) if max(result[k])>0.95 else torch.tensor(-1) for k in i_ul]  # pseudo label pour les données non labelisée seul les bons pseudo labels sont conservés.
                 yul_batch = torch.tensor(yul_batch).to(device)
                 yul_batch = yul_batch.to(torch.int64)
                 model.train()
