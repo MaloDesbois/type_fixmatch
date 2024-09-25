@@ -1,1 +1,1 @@
-Pseudo-labeling sans disentanglement
+Pseudo-labeling sans disentanglement, threshold constant
